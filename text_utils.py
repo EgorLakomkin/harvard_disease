@@ -18,7 +18,7 @@ def span_tokenize(sentence, tokens):
         yield current_token_pos, current_token_pos + len(t) - 1
 
 def pre_process(string):
-    return re.sub(r'([\.,\-\\/\'\\*"+])', r' \1 ', string)
+    return re.sub(r'([\.,\-\\/\'\\*"+():"])', r' \1 ', string)
 
 def base_tokenize(sentence, tokenizer = PunktWordTokenizer().tokenize ):
 
@@ -32,3 +32,6 @@ def base_tokenize(sentence, tokenizer = PunktWordTokenizer().tokenize ):
         return res_tokens
     else:
         return None
+
+if __name__ == "__main__":
+    print pre_process("(ATH)")

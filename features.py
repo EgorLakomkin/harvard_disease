@@ -2,6 +2,19 @@ __author__ = 'UM'
 
 CONJUNCTION_DELIMITER = '%/%'
 
+
+on_char_features = {'(' : 'OpenParen', ')' : 'CloseParen', '[' : 'OpenBracket', ']' : 'CloseBracket', '/' : 'BackSlash',
+                    ',' : 'Comma', ':' : 'Colon', '.' : 'FullStop', '*' : 'Star', '%' : 'Percent', '+' : 'Plus',
+                    '-' : 'Hyphen'}
+
+SPECIAL_LIST = []
+
+def extract_suffix(token, size = 2):
+    return token[ -size : ]
+
+def extract_prefix(token, size = 2):
+    return token[ : size]
+
 def get_orthographic_features(token):
     T = (
         'AllUpper', 'AllDigit', 'AllSymbol',
@@ -105,6 +118,76 @@ def yield_n_gram( token, n_gram_size = 3 ):
             yield possible_n_gram
 
 
+def morphology_features(sequence, i):
+
+
+    current_token = sequence[i]['token']
+    current_token_lower = current_token.lower()
+
+    suffix_2 = extract_suffix(current_token_lower, size = 2)
+    suffix_3 = extract_suffix(current_token_lower, size = 3)
+    suffix_4 = extract_suffix(current_token_lower, size = 4)
+
+    prefix_2 = extract_prefix(current_token_lower, size = 2)
+    prefix_3 = extract_prefix(current_token_lower, size = 3)
+    prefix_4 = extract_prefix(current_token_lower, size = 4)
+
+    yield "morph_suffix_2" + "=" + suffix_2
+    yield "morph_suffix_3" + "=" + suffix_3
+    yield "morph_suffix_4" + "=" + suffix_4
+
+    for j in range(-2,2):
+        if j != 0 and i + j >=0 and i + j < len(sequence):
+            for size in [2,3,4]:
+                window_token = sequence[i + j]['token']
+                window_token_lower = window_token.lower()
+                prefix_window_j = extract_prefix( window_token_lower  , size = size)
+                suffix_window_j =  extract_suffix( window_token_lower  , size = size)
+                yield "morph_prefix_window" + str(j) + "_size" + str(size)+ "=" + prefix_window_j
+                yield "morph_suffix_window" + str(j) + "_size" + str(size)+ "=" + suffix_window_j
+
+    yield "morph_prefix_2" + "=" + prefix_2
+    yield "morph_prefix_3" + "=" + prefix_3
+    yield "morph_prefix_4" + "=" + prefix_4
+
+    for type in get_orthographic_features( current_token ):
+        yield "morph_type="+ type
+
+    for j in range(-2,2):
+        if j != 0 and i + j >=0 and i + j < len(sequence):
+            token_in_window = sequence[i + j]['token']
+            for type in get_orthographic_features( token_in_window ):
+                yield "morph_type=@POS_{0}_{1}".format( str( j), type )
+
+    for type in counting_features( sequence, i ):
+        yield "morph_count=" + type
+
+    for j in range(-2,2):
+        if j != 0 and i + j >=0 and i + j < len(sequence):
+            for type in counting_features( sequence, i + j ):
+                yield "morph_count=@POS_{0}_{1}".format( str( j ), type )
+
+    #add character n-grams
+
+    for n_gram in yield_n_gram( current_token_lower,n_gram_size= 3 ):
+        yield "n_char_gram_3=" + n_gram
+
+    for n_gram in yield_n_gram( current_token_lower, n_gram_size= 4 ):
+        yield "n_char_gram_4=" + n_gram
+
+    for n_gram in yield_n_gram( current_token_lower, n_gram_size= 5 ):
+        yield "n_char_gram_5=" + n_gram
+
+
+
+    if current_token_lower in SPECIAL_LIST:
+        yield "greek_token"
+
+    if current_token in on_char_features:
+        yield "special={}".format( on_char_features[ current_token ] )
+
+
+
 def baseline_features(sequence, i):
 
     word = sequence[i]['token']
@@ -159,7 +242,7 @@ def conjunction_features(sequence, i):
             yield "LEMMA={0}@{1}{2}LEMMA_{3}@{4}".format( w1_lemma.encode('utf-8'), str(w1), CONJUNCTION_DELIMITER, w2_lemma.encode('utf-8'), str(w2) )
 
 
-default_pipeline = [ baseline_features, conjunction_features ]
+default_pipeline = [ baseline_features,morphology_features, conjunction_features ]
 
 def default_word2features(sent, i):
     for feature_func in default_pipeline:
